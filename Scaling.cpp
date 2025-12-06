@@ -22,3 +22,23 @@ std::ostream &operator<<(std::ostream &os, const Scaling &s)
 
     return os;
 }
+
+Matrix4 Scaling::getScalingMatrix(){
+
+    double data[4][4] = {
+
+    {sx , 0 , 0 , 0},
+
+    {0 , sy , 0 , 0},
+
+    {0 , 0 , sz , 0},
+
+    {0 , 0 , 0 , 1}
+    
+
+    };
+
+    return Matrix4(data);
+
+
+}

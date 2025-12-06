@@ -4,6 +4,11 @@
 #define SOLID_INSTANCE 1
 #include "Mesh.h"
 
+
+#include "Helpers.h"
+
+
+
 class Instance
 {
 
@@ -22,6 +27,13 @@ public:
              std::vector<char> transformationTypes);
 
     friend std::ostream &operator<<(std::ostream &os, const Instance &instance);
+
+    Matrix4 getComposeTransformMatrix(
+    const std::vector<Translation*>& translations,
+    const std::vector<Scaling*>& scalings,
+    const std::vector<Rotation*>& rotations
+) const;
+
 };
 
 #endif

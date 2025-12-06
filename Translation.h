@@ -1,6 +1,8 @@
 #ifndef __TRANSLATION_H__
 #define __TRANSLATION_H__
 
+#include "Helpers.h"
+
 class Translation
 {
 public:
@@ -10,6 +12,8 @@ public:
     Translation();
     Translation(int translationId, double tx, double ty, double tz);
     friend std::ostream &operator<<(std::ostream &os, const Translation &t);
+
+    Matrix4 getTranslationMatrix();
 };
 
 #endif

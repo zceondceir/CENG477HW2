@@ -22,3 +22,25 @@ std::ostream &operator<<(std::ostream &os, const Translation &t)
     os << std::fixed << std::setprecision(3) << "Translation #" << t.translationId << " => [" << t.tx << ", " << t.ty << ", " << t.tz << "]";
     return os;
 }
+
+Matrix4 Translation::getTranslationMatrix(){
+
+    double data[4][4] = {
+
+    {1 , 0 , 0 , tx},
+
+    {0 , 1 , 0 , ty},
+
+    {0 , 0 , 1 , tz},
+
+    {0 , 0 , 0 , 1}
+    
+
+    };
+
+    return Matrix4(data);
+
+    
+
+
+}

@@ -2,6 +2,11 @@
 #include <iomanip>
 #include "Camera.h"
 
+
+
+
+
+
 Camera::Camera() {}
 
 Camera::Camera(int cameraId,
@@ -62,4 +67,79 @@ std::ostream &operator<<(std::ostream &os, const Camera &c)
        << "\tnear: " << c.near << " far: " << c.far << " resolutions: " << c.horRes << "x" << c.verRes << " fileName: " << c.outputFilename;
 
     return os;
+}
+
+Matrix4 Camera::getCameraMatrix()
+{
+    double ex = position.x;
+    double ey = position.y;
+    double ez = position.z;
+
+    double data[4][4] = {
+        { u.x, u.y, u.z, -(u.x*ex + u.y*ey + u.z*ez) },
+        { v.x, v.y, v.z, -(v.x*ex + v.y*ey + v.z*ez) },
+        { w.x, w.y, w.z, -(w.x*ex + w.y*ey + w.z*ez) },
+        { 0.0, 0.0, 0.0, 1.0 }
+    };
+
+    return Matrix4(data);
+}
+
+Matrix4 Camera::getProjectionMatrix()
+{
+    if (projectionType == ORTOGRAPHIC_PROJECTION)
+        return getOrthographicMatrix();
+    else
+        return getPerspectiveMatrix();
+}
+
+Matrix4 Camera::getOrthographicMatrix()
+{
+    double L = left, R = right;
+    double B = bottom, T = top;
+    double N = near,  F = far;
+
+    double data[4][4] =
+    {
+        {  2.0/(R-L),      0,               0,              -(R+L)/(R-L) },
+        {       0,     2.0/(T-B),           0,              -(T+B)/(T-B) },
+        {       0,          0,         -2.0/(F-N),          -(F+N)/(F-N) },
+        {       0,          0,              0,                       1 }
+    };
+
+    return Matrix4(data);
+}
+
+
+Matrix4 Camera::getPerspectiveMatrix()
+{
+    double L = left, R = right;
+    double B = bottom, T = top;
+    double N = near,  F = far;
+
+    double data[4][4] =
+    {
+        { (2*N)/(R-L),       0,             (R+L)/(R-L),             0 },
+        {      0,        (2*N)/(T-B),       (T+B)/(T-B),             0 },
+        {      0,             0,          -(F+N)/(F-N),        -(2*F*N)/(F-N) },
+        {      0,             0,               -1,                    0 }
+    };
+
+    return Matrix4(data);
+}
+
+Matrix4 Camera::getViewportMatrix()
+{
+    double w = horRes;
+    double h = verRes;
+
+    double data[4][4] =
+    {
+        { w/2.0,    0,        0,      (w-1)/2.0 },
+        {   0,     -h/2.0,    0,      (h-1)/2.0 },
+        {   0,        0,       1,         0      },
+        {   0,        0,       0,         1      }
+    };
+
+    return Matrix4(data);
 }

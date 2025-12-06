@@ -15,6 +15,8 @@ public:
     Vec4WithColor(const Vec4WithColor &other);
 
     friend std::ostream &operator<<(std::ostream &os, const Vec4WithColor &v);
+
+    void divideByW();
 };
 
 #endif

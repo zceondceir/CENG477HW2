@@ -1,6 +1,8 @@
 #ifndef __ROTATION_H__
 #define __ROTATION_H__
 
+#include "Helpers.h"
+
 class Rotation
 {
 public:
@@ -10,6 +12,9 @@ public:
     Rotation();
     Rotation(int rotationId, double angle, double x, double y, double z);
     friend std::ostream &operator<<(std::ostream &os, const Rotation &r);
+
+    Matrix4 getRotationMatrix();
+    
 };
 
 #endif

@@ -30,3 +30,13 @@ std::ostream &operator<<(std::ostream &os, const Vec4WithColor &v)
     os << std::fixed << std::setprecision(6) << "Vertex4D [" << v.x << ", " << v.y << ", " << v.z << ", " << v.t << "] with color " << v.color;
     return os;
 }
+
+void Vec4WithColor::divideByW(){
+    
+    if (std::abs(t) < 1e-9) return;
+    
+    x /= t;
+    y /= t;
+    z /= t;
+    t = 1.0;
+}

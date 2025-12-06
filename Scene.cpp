@@ -359,7 +359,137 @@ void Scene::writeImageToPPMFile(Camera *camera)
 /*
 	Transformations, clipping, culling, rasterization are done here.
 */
-void Scene::forwardRenderingPipeline(Camera *camera)
-{
-	// TODO: Implement this function
+
+
+
+// void Scene::forwardRenderingPipeline(Camera *camera)
+// {
+// 	m1 = camTransform
+
+// 	m2 = perspective
+
+// 	m3 = viewportTransform
+
+// 	for mesh in each instances
+
+// 		m4 = getComposeModelingTransform
+
+// 		compose = m2 * m1 * m4;
+
+// 		for each vertice in each tri in mesh 
+
+// 			V4color = V3 + 1 + color
+
+// 			newVertice = compose * V4color   / 
+
+			
+
+// 		if culling 
+
+// 			cull()
+
+// 		switch type: {
+
+// 			clip()
+
+
+// 			result *= m3;
+
+
+// 			rasterize()
+
+//			}
+
+// }
+
+
+
+void Scene::forwardRenderingPipeline(Camera *camera){
+
+	Matrix4 M_view = camera->getCameraMatrix();
+
+	Matrix4 M_proj = camera->getProjectionMatrix();
+
+	Matrix4 M_vp = camera->getViewportMatrix();
+
+	for (Instance *inst : instances){
+        
+		Mesh mesh = inst->mesh;
+
+		Matrix4 M_model = inst->getComposeTransformMatrix(translations, scalings, rotations);
+
+		Matrix4 M_Proj_View_Model = multiplyMatrixWithMatrix(M_proj,multiplyMatrixWithMatrix(M_view, M_model));
+
+		for (Triangle tri : mesh.triangles){
+
+			//1. Get vertices and make them 4D for homo coord
+
+			Vec4WithColor p1(tri.v1.x, tri.v1.y, tri.v1.z, 1.0, tri.v1.color);
+			Vec4WithColor p2(tri.v2.x, tri.v2.y, tri.v2.z, 1.0, tri.v2.color);
+			Vec4WithColor p3(tri.v3.x, tri.v3.y, tri.v3.z, 1.0, tri.v3.color);
+
+		
+			// 2. Apply Model-View-Projection
+		
+			p1 = multiplyMatrixWithVec4WithColor(M_Proj_View_Model, p1);
+			p2 = multiplyMatrixWithVec4WithColor(M_Proj_View_Model, p2);
+			p3 = multiplyMatrixWithVec4WithColor(M_Proj_View_Model, p3);
+
+
+			// 3. Perspective Divide
+	
+			p1.divideByW();
+			p2.divideByW();
+			p3.divideByW();
+
+			
+			// 4. Backface Culling
+			
+			if (cullingEnabled)
+			{
+				if (isBackFace(p1, p2, p3))
+					continue;
+			}
+
+			// 
+			// 5. Rendering mode
+			// =============================
+			if (inst->instanceType == 0){ // WIREFRAME
+				// - Clip
+				clipLine(p1, p2);
+				clipLine(p2, p3);
+				clipLine(p1, p3);
+
+				// Viewport transform 
+				p1 = multiplyMatrixWithMatrix(M_vp, p1);
+				p2 = multiplyMatrixWithMatrix(M_vp, p2);
+				p3 = multiplyMatrixWithMatrix(M_vp, p3);
+
+				// Draw 
+				drawLine(p1, p2);
+				drawLine(p2, p3);
+				drawLine(p1, p3);
+			}
+			else{ // SOLID MODE
+				
+				// Viewport transform 
+				p1 = multiplyMatrixWithMatrix(M_vp, p1);
+				p2 = multiplyMatrixWithMatrix(M_vp, p2);
+				p3 = multiplyMatrixWithMatrix(M_vp, p3);
+
+				// 6. Triangle Rasterizer (barycentric)
+				
+				rasterizeTriangle(
+					p1, p2, p3,
+					p1.color, p2.color, p3.color
+				);
+			}
+		}
+	}
+
+
+
 }
+
+
+
