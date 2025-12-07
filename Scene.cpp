@@ -429,67 +429,166 @@ void Scene::forwardRenderingPipeline(Camera *camera){
 			Vec4WithColor p3(tri.v3.x, tri.v3.y, tri.v3.z, 1.0, tri.v3.color);
 
 		
-			// 2. Apply Model-View-Projection
+			// 2. Vertex Proc
 		
 			p1 = multiplyMatrixWithVec4WithColor(M_Proj_View_Model, p1);
 			p2 = multiplyMatrixWithVec4WithColor(M_Proj_View_Model, p2);
 			p3 = multiplyMatrixWithVec4WithColor(M_Proj_View_Model, p3);
 
-
-			// 3. Perspective Divide
+			// 3. BFC
+			
+			if (cullingEnabled && isBackFace(p1,p2,p3)) continue;
+				
+			// 4. Perspective Divide
 	
 			p1.divideByW();
 			p2.divideByW();
 			p3.divideByW();
-
+		
+			// 5. Clip and Rasterize
 			
-			// 4. Backface Culling
-			
-			if (cullingEnabled)
+			if (inst->instanceType == 0) // WIREFRAME
 			{
-				if (isBackFace(p1, p2, p3))
-					continue;
-			}
+			
+				auto processEdge = [&](const Vec4WithColor& A, const Vec4WithColor& B) {
+					Vec4WithColor pA = A;
+					Vec4WithColor pB = B;
 
-			// 
-			// 5. Rendering mode
-			// =============================
-			if (inst->instanceType == 0){ // WIREFRAME
-				// - Clip
-				clipLine(p1, p2);
-				clipLine(p2, p3);
-				clipLine(p1, p3);
+					if (clipLine(pA, pB))
+					{
+						pA = multiplyMatrixWithVec4WithColor(M_vp, pA);
+						pB = multiplyMatrixWithVec4WithColor(M_vp, pB);
+						drawLine(pA, pB);
+					}
+				};
 
-				// Viewport transform 
-				p1 = multiplyMatrixWithMatrix(M_vp, p1);
-				p2 = multiplyMatrixWithMatrix(M_vp, p2);
-				p3 = multiplyMatrixWithMatrix(M_vp, p3);
+				processEdge(p1, p2);  // a → b
+				processEdge(p2, p3);  // b → c
+				processEdge(p3, p1);  // c → a
 
-				// Draw 
-				drawLine(p1, p2);
-				drawLine(p2, p3);
-				drawLine(p1, p3);
 			}
 			else{ // SOLID MODE
 				
-				// Viewport transform 
-				p1 = multiplyMatrixWithMatrix(M_vp, p1);
-				p2 = multiplyMatrixWithMatrix(M_vp, p2);
-				p3 = multiplyMatrixWithMatrix(M_vp, p3);
-
-				// 6. Triangle Rasterizer (barycentric)
 				
-				rasterizeTriangle(
-					p1, p2, p3,
-					p1.color, p2.color, p3.color
-				);
+				p1 = multiplyMatrixWithVec4WithColor(M_vp, p1);
+				p2 = multiplyMatrixWithVec4WithColor(M_vp, p2);
+				p3 = multiplyMatrixWithVec4WithColor(M_vp, p3);
+				
+				rasterizeTriangle(p1, p2, p3);
 			}
 		}
 	}
 
+}
 
+bool isBackFace(const Vec4WithColor &p1, const Vec4WithColor &p2, const Vec4WithColor &p3){
+		
+    Vec3 a(p1.x, p1.y, p1.z);
+    Vec3 b(p2.x, p2.y, p2.z);
+    Vec3 c(p3.x, p3.y, p3.z);
+
+    Vec3 ab = subtractVec3(b, a);
+    Vec3 ac = subtractVec3(c, a);
+
+    Vec3 n = crossProductVec3(ab, ac);
+
+    return (n.z >= 0);   //bura bir dursun
 
 }
+
+bool clipLine(Vec4WithColor &pA, Vec4WithColor &pB){
+    
+	auto computeOutCode = [&](const Vec4WithColor &p)
+    {
+        const double x = p.x;
+        const double y = p.y;
+
+        int code = 0;
+        const int LEFT   = 1;
+        const int RIGHT  = 2;
+        const int BOTTOM = 4;
+        const int TOP    = 8;
+
+        if (x < -1.0) code |= LEFT;
+        else if (x >  1.0) code |= RIGHT;
+
+        if (y < -1.0) code |= BOTTOM;
+        else if (y >  1.0) code |= TOP;
+
+        return code;
+    };
+
+   
+    auto outA = computeOutCode(pA);
+    auto outB = computeOutCode(pB);
+
+    while (true)
+    {
+        // 1) Trivial accept
+        if ((outA | outB) == 0)
+        {
+            return true;
+        }
+
+        // 2) Trivial reject
+        if (outA & outB)
+        {
+            return false;
+        }
+
+        int outCodeOut = (outA != 0 ? outA : outB);
+
+        double x, y;
+
+        const double Ax = pA.x, Ay = pA.y;
+        const double Bx = pB.x, By = pB.y;
+
+        double dx = Bx - Ax;
+        double dy = By - Ay;
+
+        if (outCodeOut & 8) // TOP
+        {
+            double t = (1.0 - Ay) / dy;
+            x = Ax + t * dx;
+            y = 1.0;
+        }
+        else if (outCodeOut & 4) // BOTTOM
+        {
+            double t = (-1.0 - Ay) / dy;
+            x = Ax + t * dx;
+            y = -1.0;
+        }
+        else if (outCodeOut & 2) // RIGHT
+        {
+            double t = (1.0 - Ax) / dx;
+            x = 1.0;
+            y = Ay + t * dy;
+        }
+        else if (outCodeOut & 1) // LEFT
+        {
+            double t = (-1.0 - Ax) / dx;
+            x = -1.0;
+            y = Ay + t * dy;
+        }
+
+        if (outCodeOut == outA)
+        {
+            pA.x = x;
+            pA.y = y;
+            outA = computeOutCode(pA);
+        }
+        else
+        {
+            pB.x = x;
+            pB.y = y;
+            outB = computeOutCode(pB);
+        }
+    }
+}
+
+
+void drawLine(const Vec4WithColor &p1, const Vec4WithColor &p2);
+void rasterizeTriangle(const Vec4WithColor &p1, const Vec4WithColor &p2, const Vec4WithColor &p3);
 
 
 
